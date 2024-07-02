@@ -85,6 +85,7 @@ def create_database():
         print('Created Database!')
 
 """
+
 from flask import Flask
 from os import path
 from flask_sqlalchemy import SQLAlchemy
