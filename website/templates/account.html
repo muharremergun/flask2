@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<h1>Profile Page for {{ user.first_name }}</h1>
+<h4>Favorite Notes:</h4>
+<ul>
+    {% for favorite_note in favorite_notes %}
+        <li>
+            {{ favorite_note.data }}
+            {% if favorite_note.completed %}
+                <i class="fa fa-check-circle" style="color: green;"></i> <!-- Tamamlandı -->
+            {% else %}
+                <i class="fa fa-times-circle" style="color: red;"></i> <!-- Tamamlanmadı -->
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+{% endblock %}

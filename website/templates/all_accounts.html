@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}All User Accounts{% endblock %}
+{% block content %}
+<h1>All User Accounts</h1>
+<ul>
+    {% for user in all_users %}
+        <li>
+            <a href="{{ url_for('auth.account', user_id=user.id) }}">{{ user.first_name }}</a>
+        </li>
+    {% endfor %}
+</ul>
+{% endblock %}
+

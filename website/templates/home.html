@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Notes</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <style>
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgb(0,0,0);
+            background-color: rgba(0,0,0,0.4);
+            padding-top: 60px;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<h1 align="center">Notes</h1>
+<div class="d-flex justify-content-end mb-3">
+    <!-- Download Notes Button -->
+    <button type="button" class="btn btn-primary" onclick="downloadNotes()">Download Notes</button>
+    <div class="btn-group" role="group">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="show-completed" onchange="toggleVisibility()">
+            <label class="form-check-label" for="show-completed">Show Completed</label>
+            <style>
+                .form-check.form-switch {
+                    display: flex;
+                    align-items: center;
+                    background-color: #6c757d;
+                    padding: 5px 29px;
+                    border-radius: 1px;
+                }
+                .form-check-input[type="checkbox"] {
+                    margin-right: 10px;
+                }
+                .form-check-label {
+                    margin-bottom: 0;
+                    color: white;
+                }
+            </style>
+        </div>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="alphabetical">
+            Alphabetical <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="creation_date">
+            Creation Date <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="favorites_first">
+            Favorites First <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="completes_first">
+          Completes First <span class="sort-arrows">
+              <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+              <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+          </span>
+      </a>
+    </div>
+</div>
+
+<ul class="list-group list-group-flush" id="notes">
+    {% for note in notes %}
+    <li class="list-group-item {% if note.completed %}completed{% endif %}" data-note-id="{{ note.id }}">
+        <div class="note-content d-flex justify-content-between align-items-center" {% if note.completed and not show_completed %}style="display: none;"{% endif %}>
+            <div class="note-text">{{ note.data }}</div>
+            <div class="button-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="openInfoModal('{{ note.info| e }}', {{ note.id }})">
+                    <i class="fa fa-info-circle"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="writeNoteText('{{ note.data| e }}', '{{ note.reminder_days }}')">
+                    <i class="fa fa-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary favorite-btn" onClick="toggleFavorite({{ note.id }})">
+                    {% if note.is_favorite %}
+                        <i class="fa fa-heart"></i>
+                    {% else %}
+                        <i class="fa fa-heart-o"></i>
+                    {% endif %}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="deleteNote({{ note.id }})">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary complete-btn" onClick="toggleComplete({{ note.id }})">
+                    {% if note.completed %}
+                    <i class="fa fa-check-circle" style="color: green;"></i>
+                    {% else %}
+                    <i class="fa fa-check-circle-o" style="color: red;"></i>
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+        <div class="note-info d-flex justify-content-start align-items-center" style="color: gray;">
+            {% if note.reminder_days > 0 %}
+                {% set remaining_days = (note.reminder_date - now).days %}
+                {% if remaining_days > 0 %}
+                    <span class="mr-2">Reminder in {{ remaining_days }} days</span>
+                {% elif remaining_days == 0 %}
+                    <span class="mr-2"> Counter is 0 , fix it today!!!  </span>
+                {% else %}
+                    <span class="mr-2">{{ remaining_days|string|replace('-','') }} days overdue</span>
+                {% endif %}
+            {% elif note.reminder_days == 0 %}
+                <span class="mr-2">No reminder date set</span>
+            {% else %}
+                <span class="mr-2">No reminder set</span>
+            {% endif %}
+            <span>{{ note.date }}</span>
+        </div>
+        <div class="reminder-status"></div>
+    </li>
+    {% endfor %}
+</ul>
+
+<form method="POST" id="add-note-form">
+    <div class="form-group">
+        <textarea name="note" id="note" class="form-control" placeholder="Enter your note"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="reminder-days">Reminder in days:</label>
+        <input type="number" name="reminder_days" id="reminder-days" class="form-control" min="1" step="1" onchange="setReminderDays()">
+    </div>
+    <div align="center">
+        <button type="submit" class="btn btn-primary">Add Note</button>
+    </div>
+</form>
+
+<!-- Info Modal -->
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Edit Information</h2>
+        <div id="editor-container" style="height: 200px;"></div>
+        <button id="saveBtn">Save</button>
+    </div>
+</div>
+
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script>
+    var now = new Date(); // Şu anki zamanı tanımla
+
+    function toggleVisibility() {
+        var isChecked = document.getElementById('show-completed').checked;
+        var notes = document.querySelectorAll('#notes li');
+
+        notes.forEach(function(note) {
+            var isCompleted = note.classList.contains('completed');
+            if (isChecked && !isCompleted) {
+                note.style.display = 'none'; // Tamamlanmamış notları gizle
+            } else {
+                note.style.display = 'block'; // Diğer durumlarda notları göster
+            }
+        });
+    }
+
+    // Quill Editor
+    var quill = new Quill('#editor-container', {
+        theme: 'snow'
+    });
+
+    // Info Modal ile ilgili fonksiyonlar
+    var modal = document.getElementById("infoModal");
+    var span = document.getElementsByClassName("close")[0];
+    var saveBtn = document.getElementById("saveBtn");
+    var currentNoteId = null; // Düzenlenen notun ID'sini saklamak için
+
+    function openInfoModal(noteText, noteId) {
+        quill.root.innerHTML = noteText;
+        modal.style.display = "block";
+        currentNoteId = noteId; // Düzenlenen notun ID'sini sakla
+    }
+
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    saveBtn.onclick = function() {
+        var infoText = quill.root.innerHTML;
+        fetch('/update_info', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ info: infoText, noteId: currentNoteId }), // Note ID'yi de gönder
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Success:', data);
+                modal.style.display = "none"; // Başarılı güncellemeden sonra modalı kapat
+                quill.root.innerHTML = ""; // Metin kutusunu temizle
+                window.location.reload(); // Sayfayı yenileyerek güncellenen bilgileri göster
+            } else {
+                console.error('Error:', data.error);
+                alert('Failed to update note info.'); // Hata durumunda kullanıcıya bilgi ver
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert('Failed to update note info.'); // Hata durumunda kullanıcıya bilgi ver
+        });
+    }
+
+    // 
+    function writeNoteText(noteText, reminderDays) {
+        document.getElementById('note').value = noteText;
+        document.getElementById('reminder-days').value = reminderDays;
+    }
+
+    function toggleComplete(noteId) {
+      var noteElement = document.querySelector(`#notes li[data-note-id="${noteId}"]`);
+      var isCompleted = noteElement.classList.toggle('completed');
+      var completeBtn = noteElement.querySelector('.complete-btn');
+
+      // Görsel olarak tamamlanma durumunu göster
+      if (isCompleted) {
+          completeBtn.innerHTML = '<i class="fa fa-check-circle" style="color: green;"></i>';
+         
+      } else {
+          completeBtn.innerHTML = '<i class="fa fa-check-circle-o" style="color: red;"></i>';
+          // Tamamlanmadığında arka plan rengini varsayılan hale getir
+      }
+
+      // Notun tamamlandı durumunu güncelle
+      fetch('/toggle-completed', {
+          method: 'POST',
+          body: JSON.stringify({ noteId: noteId, isCompleted: isCompleted ? 1 : 0 }), // true ise 1, false ise 0 gönder
+          headers: {
+              'Content-Type': 'application/json'
+          }
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (!data.success) {
+              // Başarısız durumda kullanıcıya bilgi ver
+              alert('Failed to toggle completion status.');
+          }
+      });
+  }
+
+    function toggleFavorite(noteId) {
+        fetch('/toggle-favorite', {
+            method: 'POST',
+            body: JSON.stringify({ noteId: noteId }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 
+                window.location.reload();
+            } else {
+                // Hata durumunda kullanıcıya bilgi ver
+                alert('Failed to toggle favorite status.');
+            }
+        });
+    }
+
+    function deleteNote(noteId) {
+        if (confirm('Are you sure you want to delete this note?')) {
+            fetch('/delete-note', {
+                method: 'POST',
+                body: JSON.stringify({ noteId: noteId }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Not başarıyla silindiyse, sayfayı yenile
+                    window.location.reload();
+                } else {
+                    // Hata durumunda kullanıcıya bilgi ver
+                    alert('Failed to delete note.');
+                }
+            });
+        }
+    }
+
+    function setReminderDays() {
+        var reminderDays = parseInt(document.getElementById('reminder-days').value);
+        var noteText = document.getElementById('note').value;
+        if (!isNaN(reminderDays) && reminderDays > 0) {
+            var formData = new FormData();
+            formData.append('note', noteText);
+            formData.append('reminder_days', reminderDays);
+            fetch('/set-reminder-days', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hatırlatma günlerini başarıyla ayarlandıysa, sayfayı yenile
+                    window.location.reload();
+                } else {
+                    // Hata durumunda kullanıcıya bilgi ver
+                    alert('Failed to set reminder days.');
+                }
+            })
+            .then(checkReminderDates); // Hatırlatma tarihlerini kontrol et
+        } else {
+            alert('Please enter a valid number of reminder days.');
+        }
+    }
+
+    function checkReminderDates() {
+        var notes = document.querySelectorAll('#notes li');
+        notes.forEach(function(note) {
+            var createdAtStr = note.querySelector('.note-info span:last-child').innerText;
+            var reminderDaysElement = note.querySelector('.note-info span:nth-child(1)');
+            var reminderDaysText = reminderDaysElement.innerText;
+            var reminderDays = parseInt(reminderDaysText.split(' ')[2]);
+
+            var createdAt = new Date(createdAtStr);
+            var reminderDate = new Date(createdAt.getTime() + reminderDays * 24 * 60 * 60 * 1000);
+
+            var reminderStatus = note.querySelector('.reminder-status');
+
+            if (reminderDays > 0) {
+                reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: green;"></i>';
+            } else if (reminderDays === 0) {
+                reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: orange;"></i>';
+            } else {
+                reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: red;"></i>';
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        checkReminderDates();
+        setInterval(checkReminderDates, 60000);
+    });
+
+    // Butonlara tıklandığında okları göstermek için
+    document.querySelectorAll('.sort-button').forEach(function(button) {
+        button.addEventListener('click', function() {
+            document.querySelectorAll('.sort-arrows button').forEach(function(arrow) {
+                arrow.style.display = 'none';
+            });
+            this.querySelector('.sort-arrows').style.display = 'inline-block';
+        });
+    });
+
+    document.querySelectorAll('.sort-arrow-up').forEach(function(upArrow) {
+        upArrow.addEventListener('click', function() {
+            var sortOption = this.closest('.sort-button').getAttribute('data-sort-option');
+            var order = 'asc';
+            window.location.href = '{{ url_for("views.home") }}?sort_option=' + sortOption + '&order=' + order;
+        });
+    });
+
+    document.querySelectorAll('.sort-arrow-down').forEach(function(downArrow) {
+        downArrow.addEventListener('click', function() {
+            var sortOption = this.closest('.sort-button').getAttribute('data-sort-option');
+            var order = 'desc';
+            window.location.href = '{{ url_for("views.home") }}?sort_option=' + sortOption + '&order=' + order;
+        });
+    });
+
+    // Download notes function
+    function downloadNotes() {
+        window.location.href = '/download-notes';
+    }
+</script>
+{% endblock %}
+</body>
+</html>
+
+<!--
+
+
+<h1 align="center">Notes</h1>
+<div class="d-flex justify-content-end mb-3">
+    <div class="btn-group" role="group">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="show-completed" onchange="toggleVisibility()">
+            <label class="form-check-label" for="show-completed">Show Completed</label>
+            <style>
+                .form-check.form-switch {
+                    display: flex;
+                    align-items: center;
+                    background-color: #6c757d;
+                    padding: 5px 29px;
+                    border-radius: 1px;
+                }
+                .form-check-input[type="checkbox"] {
+                    margin-right: 10px;
+                }
+                .form-check-label {
+                    margin-bottom: 0;
+                    color: white;
+                }
+            </style>
+        </div>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="alphabetical">
+            Alphabetical <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="creation_date">
+            Creation Date <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="favorites_first">
+            Favorites First <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="completes_first">
+          Completes First <span class="sort-arrows">
+              <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+              <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+          </span>
+      </a>
+    </div>
+</div>
+
+<ul class="list-group list-group-flush" id="notes">
+    {% for note in notes %}
+    <li class="list-group-item {% if note.completed %}completed{% endif %}" data-note-id="{{ note.id }}">
+        <div class="note-content d-flex justify-content-between align-items-center" {% if note.completed and not show_completed %}style="display: none;"{% endif %}>
+            <div class="note-text">{{ note.data }}</div>
+            <div class="button-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="openInfoModal('{{ note.info| e }}', {{ note.id }})">
+                    <i class="fa fa-info-circle"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="writeNoteText('{{ note.data| e }}', '{{ note.reminder_days }}')">
+                    <i class="fa fa-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary favorite-btn" onClick="toggleFavorite({{ note.id }})">
+                    {% if note.is_favorite %}
+                        <i class="fa fa-heart"></i>
+                    {% else %}
+                        <i class="fa fa-heart-o"></i>
+                    {% endif %}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="deleteNote({{ note.id }})">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary complete-btn" onClick="toggleComplete({{ note.id }})">
+                    {% if note.completed %}
+                    <i class="fa fa-check-circle" style="color: green;"></i>
+                    {% else %}
+                    <i class="fa fa-check-circle-o" style="color: red;"></i>
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+        <div class="note-info d-flex justify-content-start align-items-center" style="color: gray;">
+            {% if note.reminder_days > 0 %}
+                {% set remaining_days = (note.reminder_date - now).days %}
+                {% if remaining_days > 0 %}
+                    <span class="mr-2">Reminder in {{ remaining_days }} days</span>
+                {% elif remaining_days == 0 %}
+                    <span class="mr-2"> Counter is 0 , fix it today!!!  </span>
+                {% else %}
+                    <span class="mr-2">{{ remaining_days|string|replace('-','') }} days overdue</span>
+                {% endif %}
+            {% elif note.reminder_days == 0 %}
+                <span class="mr-2">No reminder date set</span>
+            {% else %}
+                <span class="mr-2">No reminder set</span>
+            {% endif %}
+            <span>{{ note.date }}</span>
+        </div>
+        <div class="reminder-status"></div>
+    </li>
+    {% endfor %}
+</ul>
+
+<form method="POST" id="add-note-form">
+    <div class="form-group">
+        <textarea name="note" id="note" class="form-control" placeholder="Enter your note"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="reminder-days">Reminder in days:</label>
+        <input type="number" name="reminder_days" id="reminder-days" class="form-control" min="1" step="1" onchange="setReminderDays()">
+    </div>
+    <div align="center">
+        <button type="submit" class="btn btn-primary">Add Note</button>
+    </div>
+</form>
+
+
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Edit Information</h2>
+        <div id="editor-container" style="height: 200px;"></div>
+        <button id="saveBtn">Save</button>
+    </div>
+</div>
+
+<script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+<script>
+    var now = new Date(); // Şu anki zamanı tanımla
+
+    function toggleVisibility() {
+        var isChecked = document.getElementById('show-completed').checked;
+        var notes = document.querySelectorAll('#notes li');
+
+        notes.forEach(function(note) {
+            var isCompleted = note.classList.contains('completed');
+            if (isChecked && !isCompleted) {
+                note.style.display = 'none'; // Tamamlanmamış notları gizle
+            } else {
+                note.style.display = 'block'; // Diğer durumlarda notları göster
+            }
+        });
+    }
+
+    // Quill Editor
+    var quill = new Quill('#editor-container', {
+        theme: 'snow'
+    });
+
+    // Info Modal ile ilgili fonksiyonlar
+    var modal = document.getElementById("infoModal");
+    var span = document.getElementsByClassName("close")[0];
+    var saveBtn = document.getElementById("saveBtn");
+    var currentNoteId = null; // Düzenlenen notun ID'sini saklamak için
+
+    function openInfoModal(noteText, noteId) {
+        quill.root.innerHTML = noteText;
+        modal.style.display = "block";
+        currentNoteId = noteId; // Düzenlenen notun ID'sini sakla
+    }
+
+    span.onclick = function() {
+        modal.style.display = "none";
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
+    }
+
+    saveBtn.onclick = function() {
+        var infoText = quill.root.innerHTML;
+        fetch('/update_info', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ info: infoText, noteId: currentNoteId }), // Note ID'yi de gönder
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Success:', data);
+                modal.style.display = "none"; // Başarılı güncellemeden sonra modalı kapat
+                quill.root.innerHTML = ""; // Metin kutusunu temizle
+                window.location.reload(); // Sayfayı yenileyerek güncellenen bilgileri göster
+            } else {
+                console.error('Error:', data.error);
+                alert('Failed to update note info.'); // Hata durumunda kullanıcıya bilgi ver
+            }
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+            alert('Failed to update note info.'); // Hata durumunda kullanıcıya bilgi ver
+        });
+    }
+
+    // 
+    function writeNoteText(noteText, reminderDays) {
+        document.getElementById('note').value = noteText;
+        document.getElementById('reminder-days').value = reminderDays;
+    }
+
+    function toggleComplete(noteId) {
+      var noteElement = document.querySelector(`#notes li[data-note-id="${noteId}"]`);
+      var isCompleted = noteElement.classList.toggle('completed');
+      var completeBtn = noteElement.querySelector('.complete-btn');
+
+      // Görsel olarak tamamlanma durumunu göster
+      if (isCompleted) {
+          completeBtn.innerHTML = '<i class="fa fa-check-circle" style="color: green;"></i>';
+         
+      } else {
+          completeBtn.innerHTML = '<i class="fa fa-check-circle-o" style="color: red;"></i>';
+          // Tamamlanmadığında arka plan rengini varsayılan hale getir
+      }
+
+      // Notun tamamlandı durumunu güncelle
+      fetch('/toggle-completed', {
+          method: 'POST',
+          body: JSON.stringify({ noteId: noteId, isCompleted: isCompleted ? 1 : 0 }), // true ise 1, false ise 0 gönder
+          headers: {
+              'Content-Type': 'application/json'
+          }
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (!data.success) {
+              // Başarısız durumda kullanıcıya bilgi ver
+              alert('Failed to toggle completion status.');
+          }
+      });
+  }
+
+    function toggleFavorite(noteId) {
+        fetch('/toggle-favorite', {
+            method: 'POST',
+            body: JSON.stringify({ noteId: noteId }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 
+                window.location.reload();
+            } else {
+                // Hata durumunda kullanıcıya bilgi ver
+                alert('Failed to toggle favorite status.');
+            }
+        });
+    }
+
+    function deleteNote(noteId) {
+        if (confirm('Are you sure you want to delete this note?')) {
+            fetch('/delete-note', {
+                method: 'POST',
+                body: JSON.stringify({ noteId: noteId }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Not başarıyla silindiyse, sayfayı yenile
+                    window.location.reload();
+                } else {
+                    // Hata durumunda kullanıcıya bilgi ver
+                    alert('Failed to delete note.');
+                }
+            });
+        }
+    }
+
+    function setReminderDays() {
+        var reminderDays = parseInt(document.getElementById('reminder-days').value);
+        var noteText = document.getElementById('note').value;
+        if (!isNaN(reminderDays) && reminderDays > 0) {
+            var formData = new FormData();
+            formData.append('note', noteText);
+            formData.append('reminder_days', reminderDays);
+            fetch('/set-reminder-days', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Hatırlatma günlerini başarıyla ayarlandıysa, sayfayı yenile
+                    window.location.reload();
+                } else {
+                    // Hata durumunda kullanıcıya bilgi ver
+                    alert('Failed to set reminder days.');
+                }
+            })
+            .then(checkReminderDates); // Hatırlatma tarihlerini kontrol et
+        } else {
+            alert('Please enter a valid number of reminder days.');
+        }
+    }
+
+    function checkReminderDates() {
+        var notes = document.querySelectorAll('#notes li');
+        notes.forEach(function(note) {
+            var createdAtStr = note.querySelector('.note-info span:last-child').innerText;
+            var reminderDaysElement = note.querySelector('.note-info span:nth-child(1)');
+            var reminderDaysText = reminderDaysElement.innerText;
+            var reminderDays = parseInt(reminderDaysText.split(' ')[2]);
+
+            var createdAt = new Date(createdAtStr);
+            var reminderDate = new Date(createdAt.getTime() + reminderDays * 24 * 60 * 60 * 1000);
+
+            var reminderStatus = note.querySelector('.reminder-status');
+
+            if (reminderDays > 0) {
+                reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: green;"></i>';
+            } else if (reminderDays === 0) {
+                reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: orange;"></i>';
+            } else {
+                reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: red;"></i>';
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        checkReminderDates();
+        setInterval(checkReminderDates, 60000);
+    });
+
+    // Butonlara tıklandığında okları göstermek için
+    document.querySelectorAll('.sort-button').forEach(function(button) {
+        button.addEventListener('click', function() {
+            document.querySelectorAll('.sort-arrows button').forEach(function(arrow) {
+                arrow.style.display = 'none';
+            });
+            this.querySelector('.sort-arrows').style.display = 'inline-block';
+        });
+    });
+
+    document.querySelectorAll('.sort-arrow-up').forEach(function(upArrow) {
+        upArrow.addEventListener('click', function() {
+            var sortOption = this.closest('.sort-button').getAttribute('data-sort-option');
+            var order = 'asc';
+            window.location.href = '{{ url_for("views.home") }}?sort_option=' + sortOption + '&order=' + order;
+        });
+    });
+
+    document.querySelectorAll('.sort-arrow-down').forEach(function(downArrow) {
+        downArrow.addEventListener('click', function() {
+            var sortOption = this.closest('.sort-button').getAttribute('data-sort-option');
+            var order = 'desc';
+            window.location.href = '{{ url_for("views.home") }}?sort_option=' + sortOption + '&order=' + order;
+        });
+    });
+</script>
+
+    ...........................
+<h1 align="center">Notes</h1>
+<div class="d-flex justify-content-end mb-3">
+    <div class="btn-group" role="group">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="show-completed" onchange="toggleVisibility()">
+            <label class="form-check-label" for="show-completed">Show Completed</label>
+            
+            <style>
+              /* Show Completed checkbox'ının stili */
+              .form-check.form-switch {
+                  display: flex;
+                 
+                  align-items: center; /* Metni dikeyde ortala */
+                  background-color: #6c757d; /* Gri arka plan */
+                  padding: 5px 29px;
+                  border-radius: 1px;
+              }
+          
+              .form-check-input[type="checkbox"] {
+                  margin-right: 10px;
+              }
+          
+              .form-check-label {
+                  margin-bottom: 0;
+                  color: white; /* Beyaz yazı rengi */
+              }
+          </style>
+          
+          
+          
+            
+        </div>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="alphabetical">
+            Alphabetical <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="creation_date">
+            Creation Date <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="favorites_first">
+            Favorites First <span class="sort-arrows">
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+                <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+            </span>
+        </a>
+        <a href="#" class="btn btn-secondary sort-button" data-sort-option="completes_first">
+          Completes First <span class="sort-arrows">
+              <button class="btn btn-sm btn-outline-secondary sort-arrow-up">&#x25B2;</button>
+              <button class="btn btn-sm btn-outline-secondary sort-arrow-down">&#x25BC;</button>
+          </span>
+      </a>
+      
+    </div>
+</div>
+
+<ul class="list-group list-group-flush" id="notes">
+    {% for note in notes %}
+    <li class="list-group-item {% if note.completed %}completed{% endif %}" data-note-id="{{ note.id }}">
+        <div class="note-content d-flex justify-content-between align-items-center" {% if note.completed and not show_completed %}style="display: none;"{% endif %}>
+            <div class="note-text">{{ note.data }}</div>
+            <div class="button-group">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="writeNoteText('{{ note.data }}', '{{ note.reminder_days }}')">
+                    <i class="fa fa-pencil"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary favorite-btn" onClick="toggleFavorite({{ note.id }})">
+                    {% if note.is_favorite %}
+                        <i class="fa fa-heart"></i>
+                    {% else %}
+                        <i class="fa fa-heart-o"></i>
+                    {% endif %}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onClick="deleteNote({{ note.id }})">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary complete-btn" onClick="toggleComplete({{ note.id }})">
+                    {% if note.completed %}
+                    <i class="fa fa-check-circle" style="color: green;"></i>
+                    {% else %}
+                    <i class="fa fa-check-circle-o" style="color: red;"></i>
+                    {% endif %}
+                </button>
+            </div>
+        </div>
+        <div class="note-info d-flex justify-content-start align-items-center" style="color: gray;">
+            {% if note.reminder_days > 0 %}
+                {% set remaining_days = (note.reminder_date - now).days %}
+                {% if remaining_days > 0 %}
+                    <span class="mr-2">Reminder in {{ remaining_days }} days</span>
+                {% elif remaining_days == 0 %}
+                    <span class="mr-2"> Counter is 0 , fix it today!!!  </span>
+                {% else %}
+                    <span class="mr-2">{{ remaining_days|string|replace('-','') }} days overdue</span>
+                {% endif %}
+            {% elif note.reminder_days == 0 %}
+                <span class="mr-2">No reminder date set</span>
+            {% else %}
+                <span class="mr-2">No reminder set</span>
+            {% endif %}
+            <span>{{ note.date }}</span>
+        </div>
+        <div class="reminder-status"></div>
+    </li>
+    {% endfor %}
+</ul>
+
+<form method="POST" id="add-note-form">
+    <div class="form-group">
+        <textarea name="note" id="note" class="form-control" placeholder="Enter your note"></textarea>
+    </div>
+    <div class="form-group">
+        <label for="reminder-days">Reminder in days:</label>
+        <input type="number" name="reminder_days" id="reminder-days" class="form-control" min="1" step="1" onchange="setReminderDays()">
+    </div>
+    <div align="center">
+        <button type="submit" class="btn btn-primary">Add Note</button>
+    </div>
+</form>
+
+<script>
+    var now = new Date(); // Şu anki zamanı tanımla
+
+    // Yukarıdaki JavaScript fonksiyonları
+
+    function toggleVisibility() {
+     var isChecked = document.getElementById('show-completed').checked;
+      var notes = document.querySelectorAll('#notes li');
+
+    notes.forEach(function(note) {
+        var isCompleted = note.classList.contains('completed');
+        if (isChecked && !isCompleted) {
+            note.style.display = 'none'; // Tamamlanmamış notları gizle
+        } else {
+            note.style.display = 'block'; // Diğer durumlarda notları göster
+        }
+    });
+}
+
+
+
+
+
+  function toggleComplete(noteId) {
+      var noteElement = document.querySelector(`#notes li[data-note-id="${noteId}"]`);
+      var isCompleted = noteElement.classList.toggle('completed');
+      var completeBtn = noteElement.querySelector('.complete-btn');
+
+      // Görsel olarak tamamlanma durumunu göster
+      if (isCompleted) {
+          completeBtn.innerHTML = '<i class="fa fa-check-circle" style="color: green;"></i>';
+         
+      } else {
+          completeBtn.innerHTML = '<i class="fa fa-check-circle-o" style="color: red;"></i>';
+          // Tamamlanmadığında arka plan rengini varsayılan hale getir
+      }
+
+      // Notun tamamlandı durumunu güncelle
+      fetch('/toggle-completed', {
+          method: 'POST',
+          body: JSON.stringify({ noteId: noteId, isCompleted: isCompleted ? 1 : 0 }), // true ise 1, false ise 0 gönder
+          headers: {
+              'Content-Type': 'application/json'
+          }
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (!data.success) {
+              // Başarısız durumda kullanıcıya bilgi ver
+              alert('Failed to toggle completion status.');
+          }
+      });
+  }
+
+  // Diğer JavaScript fonksiyonları buraya eklenir
+
+  function writeNoteText(noteText, reminderDays) {
+      document.getElementById('note').value = noteText;
+      document.getElementById('reminder-days').value = reminderDays;
+  }
+
+  function toggleFavorite(noteId) {
+      fetch('/toggle-favorite', {
+          method: 'POST',
+          body: JSON.stringify({ noteId: noteId }),
+          headers: {
+              'Content-Type': 'application/json'
+          }
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.success) {
+              // Favori durumunu başarıyla güncellediyse, sayfayı yenile
+              window.location.reload();
+          } else {
+              // Hata durumunda kullanıcıya bilgi ver
+              alert('Failed to toggle favorite status.');
+          }
+      });
+  }
+
+  function deleteNote(noteId) {
+      if (confirm('Are you sure you want to delete this note?')) {
+          fetch('/delete-note', {
+              method: 'POST',
+              body: JSON.stringify({ noteId: noteId }),
+              headers: {
+                  'Content-Type': 'application/json'
+              }
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // Not başarıyla silindiyse, sayfayı yenile
+                  window.location.reload();
+              } else {
+                  // Hata durumunda kullanıcıya bilgi ver
+                  alert('Failed to delete note.');
+              }
+          });
+      }
+  }
+
+  function setReminderDays() {
+      var reminderDays = parseInt(document.getElementById('reminder-days').value);
+      var noteText = document.getElementById('note').value;
+      if (!isNaN(reminderDays) && reminderDays > 0) {
+          var formData = new FormData();
+          formData.append('note', noteText);
+          formData.append('reminder_days', reminderDays);
+          fetch('/set-reminder-days', {
+              method: 'POST',
+              body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  // Hatırlatma günlerini başarıyla ayarlandıysa, sayfayı yenile
+                  window.location.reload();
+              } else {
+                  // Hata durumunda kullanıcıya bilgi ver
+                  alert('Failed to set reminder days.');
+              }
+          })
+          .then(checkReminderDates); // Hatırlatma tarihlerini kontrol et
+      } else {
+          alert('Please enter a valid number of reminder days.');
+      }
+  }
+
+  function checkReminderDates() {
+      var notes = document.querySelectorAll('#notes li');
+      notes.forEach(function(note) {
+          var createdAtStr = note.querySelector('.note-info span:last-child').innerText;
+          var reminderDaysElement = note.querySelector('.note-info span:nth-child(1)');
+          var reminderDaysText = reminderDaysElement.innerText;
+          var reminderDays = parseInt(reminderDaysText.split(' ')[2]); // "Reminder in 1 days"  ["Reminder", "in", "1", "days"]
+
+          var createdAt = new Date(createdAtStr);
+          var reminderDate = new Date(createdAt.getTime() + reminderDays * 24 * 60 * 60 * 1000); // Oluşturulma tarihine hatırlatma gün sayısını ekleyerek hatırlatma tarihini hesapla
+
+          var reminderStatus = note.querySelector('.reminder-status');
+
+          // Hatırlatma tarihi geçmişse veya hatırlatma günleri 0 ise kırmızı, aksi halde yeşil
+          if (reminderDays > 0) {
+              reminderStatus.innerHTML = '<i class="fa fa-check-circle" style="color: green;"></i>';
+          } else if (reminderDays === 0) {
+              // 0 gün hatırlatma durumunda bir işlem yapma
+              reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: orange;"></i>';
+          } else {
+              reminderStatus.innerHTML = '<i class="fa fa-exclamation-circle" style="color: red;"></i>';
+          }
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+      checkReminderDates();
+      setInterval(checkReminderDates, 60000);
+      updateCompletedNotesBackground();
+  });
+
+  // Butonlara tıklandığında okları göstermek için
+  document.querySelectorAll('.sort-button').forEach(function(button) {
+      button.addEventListener('click', function() {
+          // Tüm okları gizle
+          document.querySelectorAll('.sort-arrows button').forEach(function(arrow) {
+              arrow.style.display = 'none';
+          });
+          // Sadece tıklanan butonun oklarını göster
+          this.querySelector('.sort-arrows').style.display = 'inline-block';
+      });
+  });
+
+  // Yukarı ve aşağı oklarına tıklandığında sıralamayı değiştir
+  document.querySelectorAll('.sort-arrow-up').forEach(function(upArrow) {
+      upArrow.addEventListener('click', function() {
+          // Yukarı yönlü ok butonuna tıklandığında sıralamayı değiştir
+          var sortOption = this.closest('.sort-button').getAttribute('data-sort-option');
+          var order = 'asc'; // Yukarı yönlü ok için artan sıralama
+          window.location.href = '{{ url_for("views.home") }}?sort_option=' + sortOption + '&order=' + order;
+          updateSortArrows(sortOption); // Sıralama oklarını güncelle
+      });
+  });
+
+  document.querySelectorAll('.sort-arrow-down').forEach(function(downArrow) {
+      downArrow.addEventListener('click', function() {
+          // Aşağı yönlü ok butonuna tıklandığında ters sıralamayı değiştir
+          var sortOption = this.closest('.sort-button').getAttribute('data-sort-option');
+          var order = 'desc'; // Aşağı yönlü ok için azalan sıralama
+          window.location.href = '{{ url_for("views.home") }}?sort_option=' + sortOption + '&order=' + order;
+          updateSortArrows(sortOption); // Sıralama oklarını güncelle
+      });
+  });
+  
+ 
+
+  // Sıralama oklarını güncelle
+  function updateSortArrows(sortOption) {
+      document.querySelectorAll('.sort-arrows button').forEach(function(arrow) {
+          arrow.style.display = 'none';
+      });
+      document.querySelector(`.sort-button[data-sort-option="${sortOption}"] .sort-arrows`).style.display = 'inline-block';
+  }
+  
+</script>
+
+
+-->
