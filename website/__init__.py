@@ -74,7 +74,7 @@ def make_celery(app):
 app = create_app()
 celery = make_celery(app)
 
-# Celery beat schedule ve timezone yapılandırması
+# Celery beat schedule ve timezone yapılandırmasıasasa
 celery.conf.timezone = 'UTC'
 DB_NAME = "database.db"
 def create_database():
