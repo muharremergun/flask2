@@ -17,6 +17,7 @@ class Note(db.Model):
     reminder_date = db.Column(db.DateTime, default=None)
     completed = db.Column(db.Boolean, default=False)  
     info = db.Column(db.String(1000))
+    team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
 
 class Favorites(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -40,7 +41,6 @@ class Team(db.Model):
 class UserTeam(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), primary_key=True)
-    role = db.Column(db.String(50))  # Örneğin, "yönetici", "üye" gibi roller ekleyebilirsiniz
 
 """
 from . import db

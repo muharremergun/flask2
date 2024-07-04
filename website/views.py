@@ -294,29 +294,6 @@ from .models import User, Team, UserTeam
 from website import db  # Burada SQLAlchemy'den gerekli nesneleri import edin
  # Kullanacağımız veritabanı modellerini import edin
 
-def distribute_users_to_teams():
-    all_users = User.query.all()
-    team1 = Team.query.filter_by(id=1).first()
-    team2 = Team.query.filter_by(id=2).first()
-
-    if not team1:
-        team1 = Team(name="Team1")
-        db.session.add(team1)
-    if not team2:
-        team2 = Team(name="Team2")
-        db.session.add(team2)
-    
-    for i, user in enumerate(all_users):
-        if i % 2 == 0:
-            if team1 not in user.teams:
-                user.teams.append(team1)
-        else:
-            if team2 not in user.teams:
-                user.teams.append(team2)
-    
-    db.session.commit()
-
-
 @views.route('/teams', methods=['GET', 'POST'])
 @login_required
 def teams():
@@ -326,11 +303,10 @@ def teams():
 
     if request.method == 'POST':
         team_id = request.form.get('team_id')
-        team = Team.query.get_or_404(team_id)
+        if team_id:
+            team = Team.query.get_or_404(team_id)
     else:
-        # Takımları oluştur ve kullanıcıları dağıt
-        distribute_users_to_teams()
-
+        # Mevcut olan takımları ve kullanıcıları al
         team1 = Team.query.get(1)
         team2 = Team.query.get(2)
 
