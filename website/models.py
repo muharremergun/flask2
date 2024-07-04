@@ -1,12 +1,14 @@
 from website import db
 from flask_login import UserMixin
 from sqlalchemy.sql import func
+
 # user_teams tablosunun tanımlanması
 user_teams = db.Table(
     'user_teams',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('team_id', db.Integer, db.ForeignKey('team.id'), primary_key=True)
 )
+
 class Note(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     data = db.Column(db.String(1000))
@@ -14,10 +16,11 @@ class Note(db.Model):
     is_favorite = db.Column(db.Boolean, default=False)
     date = db.Column(db.DateTime, default=func.now())
     reminder_days = db.Column(db.Integer, default=0)
-    reminder_date = db.Column(db.DateTime, default=None)
-    completed = db.Column(db.Boolean, default=False)  
+    reminder_date = db.Column(db.DateTime, default=None, onupdate=func.now())
+    completed = db.Column(db.Boolean, default=False)
     info = db.Column(db.String(1000))
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), nullable=True)
+    team = db.relationship('Team', backref='notes')
 
 class Favorites(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -41,6 +44,7 @@ class Team(db.Model):
 class UserTeam(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), primary_key=True)
+
 
 """
 from . import db

@@ -146,6 +146,11 @@ def all_accounts():
     all_users = User.query.all()
     return render_template('all_accounts.html', user=current_user, all_users=all_users)
 
+from flask import Blueprint, request, jsonify
+from .models import Note  # Model dosyanızın doğru yolu
+
+
+
 @views.route('/update_info', methods=['POST'])
 @login_required
 def update_info():
@@ -160,6 +165,7 @@ def update_info():
         db.session.commit()
         return jsonify({'success': True, 'info': info_text})
     return jsonify({'success': False, 'message': 'Note not found'}), 404
+
 
 
 import pandas as pd
