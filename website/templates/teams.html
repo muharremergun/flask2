@@ -3,52 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teams</title>
+    <title>{% block title %}Teams{% endblock %}</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
 <body>
     {% extends "base.html" %}
-    {% block title %}Teams{% endblock %}
+
     {% block content %}
     <div class="container mt-4">
         <h1 class="text-center">My Teams</h1>
         
-        <div class="row">
-            <div class="col-md-6">
-                <h2 class="text-center">Team 1</h2>
-                <ul class="list-group">
-                    {% for user in users_team1 %}
-                        <li class="list-group-item">{{ user.first_name }} ({{ user.email }})</li>
-                    {% else %}
-                        <li class="list-group-item">No users found for Team 1.</li>
+        <!-- Takım Seçim Formu -->
+        <form method="post" action="{{ url_for('views.teams') }}">
+            <div class="form-group">
+                <label for="team_id">Select a Team to View Details:</label>
+                <select id="team_id" name="team_id" class="form-control">
+                    <option value="">-- Select a Team --</option>
+                    {% for team in user_teams %}
+                        <option value="{{ team.id }}" {% if team.id == (team.id if team else None) %}selected{% endif %}>
+                            {{ team.name }}
+                        </option>
                     {% endfor %}
-                </ul>
+                </select>
             </div>
-            <div class="col-md-6">
-                <h2 class="text-center">Team 2</h2>
-                <ul class="list-group">
-                    {% for user in users_team2 %}
-                        <li class="list-group-item">{{ user.first_name }} ({{ user.email }})</li>
-                    {% else %}
-                        <li class="list-group-item">No users found for Team 2.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
+            <button type="submit" class="btn btn-primary">View Team</button>
+        </form>
         
+        <!-- Takım Detayları ve Üyeleri -->
         {% if team %}
             <div class="mt-4">
                 <h2>Team Details</h2>
                 <h3>{{ team.name }}</h3>
                 <h4>Members:</h4>
                 <ul class="list-group">
-                    {% for user in team.users %}
+                    {% for user in team_users[team.id] %}
                         <li class="list-group-item">{{ user.first_name }} ({{ user.email }})</li>
+                    {% else %}
+                        <li class="list-group-item">No users found for this team.</li>
                     {% endfor %}
                 </ul>
             </div>
         {% endif %}
+        
+        <!-- Kullanıcının Tüm Takımları -->
+        <div class="mt-4">
+            <h2>All My Teams</h2>
+            <ul class="list-group">
+                {% for team in user_teams %}
+                    <li class="list-group-item">
+                        <form method="post" action="{{ url_for('views.teams') }}" style="display:inline;">
+                            <input type="hidden" name="team_id" value="{{ team.id }}">
+                            <button type="submit" class="btn btn-link">{{ team.name }}</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
     </div>
     {% endblock %}
 </body>

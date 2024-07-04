@@ -304,22 +304,19 @@ from website import db  # Burada SQLAlchemy'den gerekli nesneleri import edin
 @login_required
 def teams():
     team = None
-    users_team1 = []
-    users_team2 = []
 
     if request.method == 'POST':
         team_id = request.form.get('team_id')
         if team_id:
             team = Team.query.get_or_404(team_id)
-    else:
-        # Mevcut olan takımları ve kullanıcıları al
-        team1 = Team.query.get(1)
-        team2 = Team.query.get(2)
+        else:
+            flash('Team ID is required!', 'error')
+    
+    # Mevcut olan takımları ve kullanıcıları al
+    user_teams = current_user.teams  # Kullanıcının dahil olduğu takımlar
+    team_users = {t.id: t.users for t in user_teams}  # Her takımın kullanıcıları
 
-        users_team1 = team1.users if team1 else []
-        users_team2 = team2.users if team2 else []
-
-    return render_template('teams.html', teams=current_user.teams, team=team, users_team1=users_team1, users_team2=users_team2)
+    return render_template('teams.html', user_teams=user_teams, team=team, team_users=team_users)
 
 """
 
