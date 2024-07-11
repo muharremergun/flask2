@@ -5,6 +5,9 @@ from flask_mail import Mail
 from flask_login import LoginManager
 from config import Config
 from celery import Celery
+from flask_wtf import CSRFProtect
+
+# CSRF korumasını başlat
 
 
 db = SQLAlchemy()
@@ -73,6 +76,7 @@ def make_celery(app):
 
 app = create_app()
 celery = make_celery(app)
+csrf = CSRFProtect(app)
 
 # Celery beat schedule ve timezone yapılandırmasıasasa
 celery.conf.timezone = 'UTC'

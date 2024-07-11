@@ -2,11 +2,12 @@ from website import db
 from flask_login import UserMixin
 from sqlalchemy.sql import func
 
-# user_teams tablosunun tanımlanması
+# Association table for users and teams
 user_teams = db.Table(
     'user_teams',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
-    db.Column('team_id', db.Integer, db.ForeignKey('team.id'), primary_key=True)
+    db.Column('team_id', db.Integer, db.ForeignKey('team.id'), primary_key=True),
+    db.Column('role_id', db.Integer, db.ForeignKey('role.id'))
 )
 
 class Note(db.Model):
@@ -35,16 +36,27 @@ class User(db.Model, UserMixin):
     notes = db.relationship('Note', backref='user')
     favorites = db.relationship('Favorites', backref='user')
     teams = db.relationship('Team', secondary='user_teams', back_populates='users')
-
+    
 class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), unique=True, nullable=False)
     users = db.relationship('User', secondary='user_teams', back_populates='teams')
+    roles = db.relationship('Role', secondary='user_teams', back_populates='teams')
+
+
+class Role(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), unique=True, nullable=False)
+    #user_teams = db.relationship('UserTeam', back_populates='role')
+    teams = db.relationship('Team', secondary='user_teams', back_populates='roles')
 
 class UserTeam(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
     team_id = db.Column(db.Integer, db.ForeignKey('team.id'), primary_key=True)
-
+    role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=False)
+    user = db.relationship('User', backref=db.backref('user_teams', cascade='all, delete-orphan'))
+    team = db.relationship('Team', backref=db.backref('user_teams', cascade='all, delete-orphan'))
+    role = db.relationship('Role', backref=db.backref('user_teams', cascade='all, delete-orphan'))
 
 """
 from . import db

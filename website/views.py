@@ -162,6 +162,8 @@ def update_info():
     note = Note.query.filter_by(id=note_id, user_id=current_user.id).first()
     if note:
         note.info = info_text
+   
+        
         db.session.commit()
         return jsonify({'success': True, 'info': info_text})
     return jsonify({'success': False, 'message': 'Note not found'}), 404
@@ -295,7 +297,7 @@ from .models import Team
 from website import db
 from flask import Blueprint, render_template, request
 from flask_login import login_required, current_user
-from .models import User, Team, UserTeam
+from .models import User, Team, UserTeam,Role
 
 from website import db  # Burada SQLAlchemy'den gerekli nesneleri import edin
  # Kullanacağımız veritabanı modellerini import edin
@@ -304,19 +306,42 @@ from website import db  # Burada SQLAlchemy'den gerekli nesneleri import edin
 @login_required
 def teams():
     team = None
+    notes = []
+    now = datetime.now()  # Şu anki zamanı al
 
     if request.method == 'POST':
         team_id = request.form.get('team_id')
         if team_id:
             team = Team.query.get_or_404(team_id)
+            notes = Note.query.filter_by(user_id=current_user.id, team_id=team_id).all()
         else:
             flash('Team ID is required!', 'error')
-    
-    # Mevcut olan takımları ve kullanıcıları al
-    user_teams = current_user.teams  # Kullanıcının dahil olduğu takımlar
-    team_users = {t.id: t.users for t in user_teams}  # Her takımın kullanıcıları
 
-    return render_template('teams.html', user_teams=user_teams, team=team, team_users=team_users)
+    user_teams = current_user.teams  # Kullanıcının dahil olduğu takımlar
+     
+    team_users = {}
+    user_roles = {}
+    for t in user_teams:
+        team_users[t.id] = t.users
+        for user in t.users:
+            user_team = UserTeam.query.filter_by(user_id=user.id, team_id=t.id).first()
+            if user_team:
+                role = Role.query.get(user_team.role_id)
+                user_roles[user.id] = role.name if role else None
+
+    
+    return render_template('teams.html', user=current_user, user_teams=user_teams, team=team, team_users=team_users, notes=notes, now=now,user_roles=user_roles)
+
+@views.route('/add_note', methods=['POST'])
+@login_required
+def add_note():
+    data = request.form
+    note_text = data.get('note')
+    reminder_days = data.get('reminder_days', type=int)
+    new_note = Note(data=note_text, user_id=current_user.id, reminder_days=reminder_days)
+    db.session.add(new_note)
+    db.session.commit()
+    return redirect(url_for('views.home'))
 
 """
 
